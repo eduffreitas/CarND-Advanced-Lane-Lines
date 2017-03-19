@@ -1144,6 +1144,20 @@ HTML("<video width=\"960\" height=\"540\" controls><source src=\"{0}\"></video>"
 
 
 
+# Discussion
+
+In this project one of my greatest challenges was my own organization of the code insetead of a technical one.
+
+I am still in need of a better algo to keep track of smothed lines because in some places few place this would be beneficial]
+
+I also didn't have time to take a look into the harder challenges, I will revisit this project later do improve this, and do more avaraging and sanity checks.
+ 
+But I am pretty confidend that the thresholds selected are going to do a good job.
+
+Also I feel that the algo might fail if no lines at all are found, in which case I will have to implement some robustness, for for this project what I have so far is enough. But I think it was good to try extracting the most of the images without avaraging so when I implement it will be very robust.
+
+
+
 
 ```python
 
