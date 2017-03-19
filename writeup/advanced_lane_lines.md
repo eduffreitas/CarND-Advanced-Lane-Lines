@@ -40,7 +40,7 @@ plt.imshow(test_img)
 
 
 
-    <matplotlib.image.AxesImage at 0xbe0e7f0>
+    <matplotlib.image.AxesImage at 0xbe0e898>
 
 
 
@@ -315,10 +315,14 @@ The idea is to combine them to identify edges
 
 
 ```python
+def gaussian_blur(img, kernel_size):
+    #Applies a Gaussian Noise kernel
+    return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+
 def abs_sobel_thresh(gray_img, orient='x', sobel_kernel=3, thresh=(0, 255)):
     x_orient = 1 if orient == 'x' else 0
     y_orient = 0 if orient == 'x' else 1
-    sobel = cv2.Sobel(gray_img, cv2.CV_64F, x_orient, y_orient)
+    sobel = cv2.Sobel(gray_img, cv2.CV_64F, x_orient, y_orient, ksize=sobel_kernel)
     abs_sobel = np.absolute(sobel)
     scaled_sobel = np.uint8(255*abs_sobel/np.max(abs_sobel))
     grad_binary = np.zeros_like(scaled_sobel)
@@ -354,8 +358,9 @@ test_img_path = './test_images/test1.jpg'
 
 test_img = mpimg.imread(test_img_path)
 test_img_gray = turn_to_gray(test_img)
-result_x = abs_sobel_thresh(test_img_gray, orient='x', sobel_kernel=20, thresh=(20, 255))
-result_y = abs_sobel_thresh(test_img_gray, orient='y', sobel_kernel=20, thresh=(60, 255))
+test_img_gray = gaussian_blur(test_img_gray, 9)
+result_x = abs_sobel_thresh(test_img_gray, orient='x', sobel_kernel=15, thresh=(60, 255))
+result_y = abs_sobel_thresh(test_img_gray, orient='y', sobel_kernel=15, thresh=(60, 255))
 combined = np.zeros_like(test_img_gray)
 combined[((result_x == 1) & (result_y == 1))] = 1
 
@@ -382,7 +387,8 @@ Exploring Magnitude thresholdings
 ```python
 test_img = mpimg.imread(test_img_path)
 test_img_gray = turn_to_gray(test_img)
-result_mag = mag_thresh(test_img_gray, sobel_kernel=15, mag_thresh=(40, 255))
+test_img_gray = gaussian_blur(test_img_gray, 9)
+result_mag = mag_thresh(test_img_gray, sobel_kernel=15, mag_thresh=(60, 255))
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
@@ -403,6 +409,7 @@ Explring direction thresholdings
 ```python
 test_img = mpimg.imread(test_img_path)
 test_img_gray = turn_to_gray(test_img)
+test_img_gray = gaussian_blur(test_img_gray, 9)
 result_dir = dir_threshold(test_img_gray, sobel_kernel=15, thresh=(0.63, 1.03))
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
@@ -424,7 +431,7 @@ Here I combine them and display the resulting binary
 ```python
 
 combined = np.zeros_like(result_x)
-combined[(((result_x == 1) & (result_y == 1)) | ((result_mag == 1) & (result_dir == 1)))] = 1
+combined[(((result_x == 1) & (result_y == 1)) & ((result_mag == 1) & (result_dir == 1)))] = 1
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
@@ -523,7 +530,7 @@ plt.suptitle("HSV V Channel")
 
 
 
-    <matplotlib.text.Text at 0xd91b7b8>
+    <matplotlib.text.Text at 0xc71a860>
 
 
 
@@ -575,29 +582,19 @@ And these are the resulting color threshold funtions I came up with
 
 
 ```python
-def hls_select_S(image, thresh=(0, 255)):
+def hls_select(image, channel=2, thresh=(0, 255)):
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    S = hls[:,:,2]
-    binary_output = np.zeros_like(S)
-    binary_output[(S > thresh[0]) & (S <= thresh[1])] = 1
+    channel = hls[:,:,channel]    
+    binary_output = np.zeros_like(channel)
+    binary_output[(channel > thresh[0]) & (channel <= thresh[1])] = 1
     return binary_output
 
-def hls_select_H(image, thresh=(0, 255)):
-    hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    H = hls[:,:,2]
-    binary_output = np.zeros_like(H)
-    binary_output[(H > thresh[0]) & (H <= thresh[1])] = 1
-    # 3) Return a binary image of threshold result
-    return binary_output
-
-def hsv_select(image, thresh=(0, 255)):
+def hsv_select(image, channel=2, thresh=(0, 255)):
     # 1) Convert to HLS color space
-    hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    # 2) Apply a threshold to the S channel
-    V = hls[:,:,2]
-    binary_output = np.zeros_like(V)
-    binary_output[(V > thresh[0]) & (V <= thresh[1])] = 1
-    # 3) Return a binary image of threshold result
+    hlv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    channel = hlv[:,:,channel]    
+    binary_output = np.zeros_like(channel)
+    binary_output[(channel > thresh[0]) & (channel <= thresh[1])] = 1
     return binary_output
 
 def red_select(image, thresh=(0, 255)):
@@ -605,7 +602,6 @@ def red_select(image, thresh=(0, 255)):
     binary_output = np.zeros_like(R)
     binary_output[(R > thresh[0]) & (R <= thresh[1])] = 1
     return binary_output
-
 ```
 
 Here I explore the many options of thresholding and I visualize them
@@ -613,7 +609,7 @@ Here I explore the many options of thresholding and I visualize them
 
 ```python
 test_img = mpimg.imread(test_img_path)
-result_s = hls_select_S(test_img, thresh=(90, 255))
+result_s = hls_select(test_img, thresh=(150, 255))
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
@@ -649,25 +645,7 @@ plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 
 ```python
 test_img = mpimg.imread(test_img_path)
-result_h = hls_select_H(test_img, thresh=(120, 255))
-
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
-f.tight_layout()
-ax1.imshow(test_img)
-ax1.set_title('Original Image', fontsize=50)
-ax2.imshow(result_h, cmap='gray')
-ax2.set_title('Binary H', fontsize=50)
-plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-```
-
-
-![png](output_34_0.png)
-
-
-
-```python
-test_img = mpimg.imread(test_img_path)
-result_v = hsv_select(test_img, thresh=(170, 255))
+result_v = hsv_select(test_img, thresh=(220, 255))
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
@@ -679,15 +657,83 @@ plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 ```
 
 
-![png](output_35_0.png)
+![png](output_34_0.png)
 
 
 Now I combine color thresholding and edge detection thresholding
 
 
 ```python
-combined = np.zeros_like(result_x)
-combined[(((result_x == 1) & (result_y == 1)) | ((result_mag == 1) & (result_dir == 1))) | (((result_r == 1) | (result_h == 1)) | (result_s == 1))] = 1
+def region_of_interest(img, vertices):
+    mask = np.zeros_like(img)   
+    
+    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+    if len(img.shape) > 2:
+        channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+        ignore_mask_color = (255,) * channel_count
+    else:
+        ignore_mask_color = 255
+        
+    #filling pixels inside the polygon defined by "vertices" with the fill color    
+    cv2.fillPoly(mask, vertices, ignore_mask_color)
+    
+    #returning the image only where mask pixels are nonzero
+    masked_image = cv2.bitwise_and(img, mask)
+    return masked_image
+```
+
+
+```python
+test_img_masked = region_of_interest(test_img, np.array([[(0,test_img.shape[0]),(460, 400), (780, 400), (test_img.shape[1],test_img.shape[0])]], dtype=np.int32))
+
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
+f.tight_layout()
+ax1.imshow(test_img)
+ax1.set_title('Original Image', fontsize=50)
+ax2.imshow(test_img_masked, cmap='gray')
+ax2.set_title('Binary Combined', fontsize=50)
+plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
+```
+
+
+![png](output_37_0.png)
+
+
+
+```python
+def get_thresholded_binary(frame, record):
+    frame_gray = turn_to_gray(frame)
+    ksize = 15
+    # Apply region of interest
+    
+    
+    # Apply each of the thresholding functions
+    thresholded_x = abs_sobel_thresh(frame_gray, orient='x', sobel_kernel=ksize, thresh=(20, 255))
+    thresholded_y = abs_sobel_thresh(frame_gray, orient='y', sobel_kernel=ksize, thresh=(30, 255))
+    thresholded_mag = mag_thresh(frame_gray, sobel_kernel=ksize, mag_thresh=(30, 255))
+    thresholded_dir = dir_threshold(frame_gray, sobel_kernel=ksize, thresh=(.65, 1.05))
+    thresholded_s = hls_select(frame, thresh=(85, 255))
+    thresholded_r = red_select(frame, thresh=(195, 255))
+    thresholded_v = hsv_select(test_img, thresh=(195, 255))
+    
+    # Combine all the thresholding information
+    combined_binary = np.zeros_like(thresholded_x)
+    combined_binary[((thresholded_x == 1) & (thresholded_y == 1) & (thresholded_mag == 1) & (thresholded_dir == 1)) | ((thresholded_s == 1) & (thresholded_r == 1) & (thresholded_v == 1))] = 1
+    
+    if record:
+        combined_binary[(combined_binary == 1)] = 255
+        binary_save = np.dstack((combined_binary.astype(np.uint8), combined_binary.astype(np.uint8), combined_binary.astype(np.uint8)))
+        mpimg.imsave("./output_images/{0}_binary.jpg".format(frame_index), binary_save)
+        combined_binary[(combined_binary == 255)] = 1
+
+    combined_binary = region_of_interest(combined_binary, np.array([[(0,frame.shape[0]),(460, 400), (780, 400), (frame.shape[1],frame.shape[0])]], dtype=np.int32))
+    return combined_binary
+    
+```
+
+
+```python
+combined = get_thresholded_binary(test_img, False)
 
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
 f.tight_layout()
@@ -699,7 +745,7 @@ plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 ```
 
 
-![png](output_37_0.png)
+![png](output_39_0.png)
 
 
 # Lane Finding
@@ -724,7 +770,7 @@ plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
 ```
 
 
-![png](output_39_0.png)
+![png](output_41_0.png)
 
 
 
@@ -837,7 +883,7 @@ axes.set_ylim([0,500])
 
 
 
-![png](output_43_1.png)
+![png](output_45_1.png)
 
 
 with these peaks I also identify the position of the car in relation to the lane center
@@ -852,10 +898,10 @@ xm_per_pix = 3.7/700
 print("Offset: ", ((warped.shape[1]/2)-(info.left_base + ((info.right_base - info.left_base)/2)))*xm_per_pix)
 ```
 
-    Left Base:  1047
-    Left Base:  323
+    Left Base:  1034
+    Left Base:  318
     Center:  640.0
-    Offset:  -0.237857142857
+    Offset:  -0.190285714286
     
 
 Here I plot how the moving window search identifies lane pixels
@@ -883,7 +929,7 @@ plt.ylim(720, 0)
 
 
 
-![png](output_47_1.png)
+![png](output_49_1.png)
 
 
 And then how once I have lane fits I just look for the next lane lines inside a margin window of the previuos fit
@@ -935,7 +981,7 @@ plt.ylim(720, 0)
 
 
 
-![png](output_50_1.png)
+![png](output_52_1.png)
 
 
 
@@ -946,7 +992,7 @@ right_curverad = ((1 + (2*info.right_fit[0]*y_eval + info.right_fit[1])**2)**1.5
 print(left_curverad, right_curverad)
 ```
 
-    6950.46205487 5794.05654261
+    10308.7087088 7377.493649
     
 
 Next thing to do is calculta the curvature in pixels (above) then in meters (below)
@@ -974,7 +1020,7 @@ left_curverad, right_curverad = calculate_curvature(info.lefty, info.leftx, info
 print(left_curverad, 'm', right_curverad, 'm')
 ```
 
-    2268.34784033 m 1891.0033149 m
+    3352.58338868 m 2396.47488826 m
     
 
 This method will draw the previously detected lines into the original image
@@ -1015,12 +1061,12 @@ plt.imshow(result)
 
 
 
-    <matplotlib.image.AxesImage at 0xe594ac8>
+    <matplotlib.image.AxesImage at 0xd6df6d8>
 
 
 
 
-![png](output_57_1.png)
+![png](output_59_1.png)
 
 
 # Pipeline
@@ -1029,50 +1075,94 @@ Below I join all the methods above to
 
     undistort the image
     threshold it
-    warpe it to birdseye a view
+    warp it to birdseye a view
     identfy lane lines
     calculate curvature and offsets
     and draw the lane, curvature and offset onto the original image
 
 
 ```python
-def get_thresholded_binary(frame, record):
-    frame_gray = turn_to_gray(frame)
+imgs = glob.glob('./test_images/*.jpg')
+frame_index = 0
+
+for fname in imgs:
+    img = mpimg.imread(fname)
+    img = get_thresholded_binary(img, False)
+    plt.figure()
+    plt.imshow(img, cmap='gray')
+    plt.suptitle(fname)
+```
+
+
+![png](output_61_0.png)
+
+
+
+![png](output_61_1.png)
+
+
+
+![png](output_61_2.png)
+
+
+
+![png](output_61_3.png)
+
+
+
+![png](output_61_4.png)
+
+
+
+![png](output_61_5.png)
+
+
+
+![png](output_61_6.png)
+
+
+
+![png](output_61_7.png)
+
+
+
+```python
+class Line():
+    def __init__(self, memmory_len=5):
+        self.recent_fits = []
+        self.mean_fit = None
+        self.memmory_len = memmory_len
     
-    ksize = 7
-    # Apply each of the thresholding functions
-    thresholded_x = abs_sobel_thresh(frame_gray, orient='x', sobel_kernel=ksize, thresh=(10, 255))
-    thresholded_y = abs_sobel_thresh(frame_gray, orient='y', sobel_kernel=ksize, thresh=(60, 255))
-    thresholded_mag = mag_thresh(frame_gray, sobel_kernel=ksize, mag_thresh=(40, 255))
-    thresholded_dir = dir_threshold(frame_gray, sobel_kernel=ksize, thresh=(.65, 1.05))
-    thresholded_s = hls_select_S(frame, thresh=(90, 255))
-    thresholded_h = hls_select_H(frame, thresh=(110, 255))
-    thresholded_r = red_select(frame, thresh=(230, 255))
-    
-    # Combine all the thresholding information
-    combined_binary = np.zeros_like(thresholded_x)
-    combined_binary[(((thresholded_x == 1) & (thresholded_y == 1)) | ((thresholded_mag == 1) & (thresholded_dir == 1))) | ((thresholded_s == 1) | (thresholded_h == 1) | (thresholded_r == 1))] = 1
-    
-    if record:
-        combined_binary[(combined_binary == 1)] = 255
-        binary_save = np.dstack((combined_binary.astype(np.uint8), combined_binary.astype(np.uint8), combined_binary.astype(np.uint8)))
-        mpimg.imsave("./output_images/{0}_binary.jpg".format(frame_index), binary_save)
-        combined_binary[(combined_binary == 255)] = 1
-    
-    return combined_binary
-    
+    def sanity_check(self, fit):
+        return (np.mean((fit/self.mean_fit))-1 < 0.5)
+        
+    def add_fit(self, fit):
+
+        if len(self.recent_fits) >= self.memmory_len:
+            if not self.sanity_check(fit):
+                return
+            
+            self.recent_fits.pop(0)
+            
+        self.recent_fits.append(fit)
+        self.mean_fit = np.mean(self.recent_fits, axis=0)
+        
+        
+        
+        
 ```
 
 
 ```python
+
 def process_image(frame):
     global frame_index
     global src
     global dst
     global mtx
     global dist
-    global left_fit
-    global right_fit
+    global left_line
+    global right_line
     
     record = False
     frame_index += 1
@@ -1083,10 +1173,17 @@ def process_image(frame):
     undistorted_frame = cal_undistort(frame, mtx, dist)
     combined_binary = get_thresholded_binary(undistorted_frame, record)
     warped_binary, M = warp_perspective(combined_binary, src, dst, record)
+    
+    left_fit = left_line.mean_fit
+    right_fit = right_line.mean_fit
+    
     lineInfo = find_lane_lines(warped_binary, left_fit, right_fit)
     
-    left_fit = lineInfo.left_fit
-    right_fit = lineInfo.right_fit
+    left_line.add_fit(lineInfo.left_fit)
+    right_line.add_fit(lineInfo.right_fit)
+    
+    left_fit = left_line.mean_fit
+    right_fit = right_line.mean_fit
     
     ploty = np.linspace(0, warped_binary.shape[0]-1, warped_binary.shape[0])
     left_fitx = lineInfo.left_fit[0]*ploty**2 + lineInfo.left_fit[1]*ploty + lineInfo.left_fit[2]
@@ -1110,9 +1207,56 @@ def process_image(frame):
 
 
 ```python
+imgs = glob.glob('./test_images/*.jpg')
 frame_index = 0
-left_fit = None
-right_fit = None
+
+for fname in imgs:
+    left_line = Line()
+    right_line = Line()
+    img = mpimg.imread(fname)
+    img = process_image(img)
+    plt.figure()        
+    plt.imshow(img)
+    plt.suptitle(fname)
+```
+
+
+![png](output_64_0.png)
+
+
+
+![png](output_64_1.png)
+
+
+
+![png](output_64_2.png)
+
+
+
+![png](output_64_3.png)
+
+
+
+![png](output_64_4.png)
+
+
+
+![png](output_64_5.png)
+
+
+
+![png](output_64_6.png)
+
+
+
+![png](output_64_7.png)
+
+
+
+```python
+frame_index = 0
+left_line = Line()
+right_line = Line()
 output = 'output_images/project.mp4'
 clip1 = VideoFileClip("project_video.mp4")
 processed_clip = clip1.fl_image(process_image)
@@ -1123,13 +1267,13 @@ processed_clip = clip1.fl_image(process_image)
     [MoviePy] Writing video output_images/project.mp4
     
 
-    100%|█████████▉| 1260/1261 [05:54<00:00,  3.58it/s]
+    100%|█████████▉| 1260/1261 [07:07<00:00,  3.02it/s]
     
 
     [MoviePy] Done.
     [MoviePy] >>>> Video ready: output_images/project.mp4 
     
-    Wall time: 5min 54s
+    Wall time: 7min 8s
     
 
 
@@ -1157,8 +1301,3 @@ But I am pretty confidend that the thresholds selected are going to do a good jo
 Also I feel that the algo might fail if no lines at all are found, in which case I will have to implement some robustness, for for this project what I have so far is enough. But I think it was good to try extracting the most of the images without avaraging so when I implement it will be very robust.
 
 
-
-
-```python
-
-```
